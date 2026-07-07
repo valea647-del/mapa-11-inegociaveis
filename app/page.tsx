@@ -10,6 +10,7 @@ import Radar from "@/components/Radar";
 import MapaFinal from "@/components/MapaFinal";
 
 const CHAVE = "mapa11.v1";
+const CHAVE_CODIGO = "mapa11.codigo";
 const FASES = [
   "Acolhimento",
   "Diagnóstico",
@@ -31,6 +32,11 @@ export default function Pagina() {
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
+  const [exigeCodigo, setExigeCodigo] = useState(false);
+  const [codigoOk, setCodigoOk] = useState(false);
+  const [codigo, setCodigo] = useState("");
+  const [erroCodigo, setErroCodigo] = useState("");
+  const [validandoCodigo, setValidandoCodigo] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,7 +44,55 @@ export default function Pagina() {
       const salvo = localStorage.getItem(CHAVE);
       if (salvo) setTemSessao(true);
     } catch {}
+    fetch("/api/acesso")
+      .then((r) => r.json())
+      .then(async (d) => {
+        if (!d.exigeCodigo) {
+          setCodigoOk(true);
+          return;
+        }
+        setExigeCodigo(true);
+        const guardado = localStorage.getItem(CHAVE_CODIGO);
+        if (guardado) {
+          const r = await fetch("/api/acesso", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ codigo: guardado }),
+          });
+          if (r.ok) {
+            setCodigo(guardado);
+            setCodigoOk(true);
+          } else {
+            localStorage.removeItem(CHAVE_CODIGO);
+          }
+        }
+      })
+      .catch(() => setCodigoOk(true));
   }, []);
+
+  async function validarCodigo() {
+    const c = codigo.trim();
+    if (!c || validandoCodigo) return;
+    setValidandoCodigo(true);
+    setErroCodigo("");
+    try {
+      const r = await fetch("/api/acesso", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ codigo: c }),
+      });
+      if (r.ok) {
+        localStorage.setItem(CHAVE_CODIGO, c);
+        setCodigoOk(true);
+      } else {
+        setErroCodigo("Esse código não abriu a porta. Confira e tente de novo.");
+      }
+    } catch {
+      setErroCodigo("Não consegui validar agora. Tente de novo em instantes.");
+    } finally {
+      setValidandoCodigo(false);
+    }
+  }
 
   useEffect(() => {
     if (!iniciado) return;
@@ -58,10 +112,16 @@ export default function Pagina() {
     try {
       const r = await fetch("/api/chat", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-codigo": codigo },
         body: JSON.stringify({ mensagens: novas, estado: estadoAtual }),
       });
       const dados = await r.json();
+      if (r.status === 401) {
+        localStorage.removeItem(CHAVE_CODIGO);
+        setCodigoOk(false);
+        setIniciado(false);
+        return;
+      }
       if (!r.ok) throw new Error(dados.erro || "Falha na conversa.");
       const { limpo, estado: atualizado } = processarResposta(dados.texto, estadoAtual);
       setEstado(atualizado);
@@ -135,19 +195,51 @@ export default function Pagina() {
             área por área, e sair com o seu Mapa. Não é sobre mudar tudo. É sobre
             reorganizar o que importa.
           </p>
-          <button
-            onClick={() => comecar(false)}
-            className="w-full bg-vermelho text-white py-4 text-sm tracking-wide hover:bg-vinho transition-colors"
-          >
-            Começar minha jornada
-          </button>
-          {temSessao && (
-            <button
-              onClick={() => comecar(true)}
-              className="w-full mt-3 border border-tinta text-tinta py-4 text-sm tracking-wide hover:bg-nevoa transition-colors"
-            >
-              Retomar de onde parei
-            </button>
+          {exigeCodigo && !codigoOk ? (
+            <div>
+              <label htmlFor="codigo" className="block text-sm text-tinta mb-2">
+                Esta jornada é aberta com um código de acesso.
+              </label>
+              <input
+                id="codigo"
+                type="text"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && validarCodigo()}
+                placeholder="Digite seu código"
+                autoComplete="off"
+                className="w-full border border-linha bg-white p-3 text-[15px] uppercase tracking-wider focus:outline-none focus:border-vermelho"
+              />
+              {erroCodigo && <p className="text-sm text-vermelho mt-2">{erroCodigo}</p>}
+              <button
+                onClick={validarCodigo}
+                disabled={validandoCodigo || !codigo.trim()}
+                className="w-full mt-3 bg-vermelho text-white py-4 text-sm tracking-wide disabled:opacity-40 hover:bg-vinho transition-colors"
+              >
+                {validandoCodigo ? "Verificando..." : "Entrar"}
+              </button>
+              <p className="text-xs text-cinza mt-4">
+                Recebeu o convite mas não tem o código? Fale com quem te convidou ou
+                escreva para {CONFIG.contatoEmail}.
+              </p>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => comecar(false)}
+                className="w-full bg-vermelho text-white py-4 text-sm tracking-wide hover:bg-vinho transition-colors"
+              >
+                Começar minha jornada
+              </button>
+              {temSessao && (
+                <button
+                  onClick={() => comecar(true)}
+                  className="w-full mt-3 border border-tinta text-tinta py-4 text-sm tracking-wide hover:bg-nevoa transition-colors"
+                >
+                  Retomar de onde parei
+                </button>
+              )}
+            </>
           )}
           <p className="text-xs text-cinza mt-6">
             {CONFIG.mentora} · a jornada fica salva neste navegador.

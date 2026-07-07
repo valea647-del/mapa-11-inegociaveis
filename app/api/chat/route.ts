@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { montarSystemPrompt } from "@/lib/systemPrompt";
 import { CONFIG } from "@/lib/config";
 import { Estado, Mensagem } from "@/lib/types";
+import { validarAcesso } from "@/lib/acesso";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  // A porta vale em toda mensagem, não só na tela de entrada.
+  if (!validarAcesso(req.headers.get("x-codigo"))) {
+    return NextResponse.json(
+      { erro: "Código de acesso inválido ou ausente." },
+      { status: 401 }
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

@@ -31,6 +31,14 @@ npm run dev
 
 A fase 4 nomeia no máximo três tensões, apenas quando duas frases da própria pessoa disputam o mesmo recurso concreto, com as palavras dela. É proibido dizer qual inegociável governa, explicar a origem da colisão ou sugerir caminho. A fase 5 opera na vertical, dentro de cada área, nunca entre áreas. Essas regras existem para que a pessoa saia com valor real e com a percepção honesta de que a camada funda pertence ao trabalho humano.
 
+## Porta com código de acesso
+
+Os códigos vivem na variável de ambiente `CODIGOS_DE_ACESSO`, separados por vírgula (exemplo: `MENTORIA2026,PALESTRA-BNI`). Maiúsculas e minúsculas não importam. Para revogar um código, remova-o da variável na Vercel e faça redeploy; quem estava usando aquele código perde o acesso na mensagem seguinte. Se a variável ficar vazia ou não existir, o app fica aberto, sem porta. A validação acontece no servidor a cada mensagem (`app/api/chat/route.ts`), não só na tela de entrada.
+
+## Cobrar depois
+
+O único arquivo que precisa mudar para virar produto pago é `lib/acesso.ts`. A função `validarAcesso` é o ponto único de decisão de quem entra. Para plugar um pagamento (Stripe, Hotmart ou similar), o fluxo é: o checkout gera um código único por comprador, esse código entra na lista de válidos (num banco simples ou na própria variável, no começo), e nada mais no app muda. A tela de entrada e a conversa já estão prontas para isso.
+
 ## Preparado para o futuro
 
 Sem paywall nesta versão. A captura de identificação e o gateway de pagamento podem ser plugados na tela inicial (`app/page.tsx`, bloco `!iniciado`) sem reescrever o fluxo conversacional.
