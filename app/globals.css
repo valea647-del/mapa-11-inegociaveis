@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { -webkit-font-smoothing: antialiased; }
+body { background: #F7F3F1; color: #1C1414; }
+
+input[type="range"] { height: 4px; }
+
+@media print {
+  body { background: white; }
+  .no-print, header.app-header, aside { display: none !important; }
+  #mapa-final { border: none !important; }
+  .print-area { padding: 0 !important; }
+  .avoid-break { break-inside: avoid; }
+  @page { margin: 18mm; }
+}
